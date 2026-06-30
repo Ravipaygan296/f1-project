@@ -42,6 +42,15 @@ def get_results(season: int, round_: int) -> list:
     return races[0]["Results"] if races else []
 
 
+def get_sprint_results(season: int, round_: int) -> list:
+    """Get sprint race results for a specific round."""
+    data = _get(f"{BASE}/{season}/{round_}/sprint.json?limit=30")
+    if not data:
+        return []
+    races = data["MRData"]["RaceTable"]["Races"]
+    return races[0].get("SprintResults", []) if races else []
+
+
 def get_qualifying(season: int, round_: int) -> list:
     """Get qualifying results for a specific round."""
     data = _get(f"{BASE}/{season}/{round_}/qualifying.json?limit=30")
@@ -110,6 +119,9 @@ def fetch_season(season: int):
         results = get_results(season, round_)
         time.sleep(REQUEST_DELAY)
 
+        sprint_results = get_sprint_results(season, round_)
+        time.sleep(REQUEST_DELAY)
+
         pitstops = get_pitstops(season, round_)
         time.sleep(REQUEST_DELAY)
 
@@ -119,4 +131,4 @@ def fetch_season(season: int):
             laps_data = get_laps(season, round_)
             time.sleep(REQUEST_DELAY)
 
-        yield race, results, pitstops, laps_data
+        yield race, results, sprint_results, pitstops, laps_data

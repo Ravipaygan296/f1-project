@@ -18,7 +18,7 @@ from datetime import datetime, date
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ingestion.jolpica_client import fetch_season, get_driver_standings, get_constructor_standings, get_results, get_pitstops, get_laps
+from ingestion.jolpica_client import fetch_season, get_driver_standings, get_constructor_standings, get_results, get_sprint_results, get_pitstops, get_laps
 from ingestion.openf1_client import get_race_sessions, get_stints, get_weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -99,7 +99,7 @@ def ingest_jolpica(db_url: str, seasons: list[int]):
                 cur.execute("INSERT INTO seasons VALUES (%s) ON CONFLICT DO NOTHING", (season,))
             conn.commit()
 
-        for race, results, pitstops, laps_data in fetch_season(season):
+        for race, results, sprint_results, pitstops, laps_data in fetch_season(season):
             circuit = race["Circuit"]
             loc = circuit.get("Location", {})
             round_num = int(race["round"])
@@ -152,6 +152,11 @@ def ingest_jolpica(db_url: str, seasons: list[int]):
                         )
                         race_id = cur.fetchone()[0]
 
+                    # Build a dictionary of sprint points by driverId
+                    sprint_points_map = {}
+                    for sr in sprint_results:
+                        sprint_points_map[sr["Driver"]["driverId"]] = float(sr.get("points", 0))
+
                     # Results
                     for r in results:
                         ensure_driver(cur, r["Driver"])
@@ -179,7 +184,7 @@ def ingest_jolpica(db_url: str, seasons: list[int]):
                                 fastest_lap_time = EXCLUDED.fastest_lap_time
                         """, (
                             race_id, r["Driver"]["driverId"], r["Constructor"]["constructorId"],
-                            r.get("grid"), position, r.get("points", 0),
+                            r.get("grid"), position, float(r.get("points", 0)) + sprint_points_map.get(r["Driver"]["driverId"], 0),
                             r.get("status"), fastest_lap,
                         ))
 
@@ -265,6 +270,8 @@ def sync_latest_results(db_url: str, season: int = 2026):
 
             import time
             time.sleep(0.4)
+            sprint_results = get_sprint_results(season, round_num)
+            time.sleep(0.4)
             pitstops = get_pitstops(season, round_num)
             time.sleep(0.4)
 
@@ -276,6 +283,11 @@ def sync_latest_results(db_url: str, season: int = 2026):
 
             with psycopg.connect(db_url) as conn:
                 with conn.cursor() as cur:
+                    # Build a dictionary of sprint points by driverId
+                    sprint_points_map = {}
+                    for sr in sprint_results:
+                        sprint_points_map[sr["Driver"]["driverId"]] = float(sr.get("points", 0))
+
                     # Insert results
                     for r in results:
                         ensure_driver(cur, r["Driver"])
@@ -303,7 +315,7 @@ def sync_latest_results(db_url: str, season: int = 2026):
                                 fastest_lap_time = EXCLUDED.fastest_lap_time
                         """, (
                             race_id, r["Driver"]["driverId"], r["Constructor"]["constructorId"],
-                            r.get("grid"), position, r.get("points", 0),
+                            r.get("grid"), position, float(r.get("points", 0)) + sprint_points_map.get(r["Driver"]["driverId"], 0),
                             r.get("status"), fastest_lap,
                         ))
 

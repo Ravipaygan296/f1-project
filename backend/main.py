@@ -19,14 +19,20 @@ app = FastAPI(
 frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, "http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        frontend_url, 
+        "http://localhost:3000", 
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Import and register routers
-from backend.routers import compare, standings, schedule, chat, live, prediction, live_prediction
+from backend.routers import compare, standings, schedule, chat, live, prediction, live_prediction, race_engineer
 
 app.include_router(compare.router)
 app.include_router(standings.router)
@@ -35,6 +41,7 @@ app.include_router(chat.router)
 app.include_router(live.router)
 app.include_router(prediction.router)
 app.include_router(live_prediction.router)
+app.include_router(race_engineer.router)
 
 
 import threading
