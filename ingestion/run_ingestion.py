@@ -427,6 +427,8 @@ def ingest_openf1_stints(db_url: str, seasons: list[int]):
 
                 conn.commit()
             logger.info(f"  {session_name}: {len(stints)} stints, {len(weather_data)} weather records")
+            import time
+            time.sleep(0.5)
 
         logger.info(f"OpenF1 data for {season} finished")
 

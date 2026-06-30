@@ -22,6 +22,13 @@ def _get(url: str, params: dict = None, timeout: int = 20):
             if e.response is not None and e.response.status_code == 404:
                 logger.warning(f"No data found (404) for {url} with params {params}")
                 return []
+            if e.response is not None and e.response.status_code == 429:
+                retry_after = int(e.response.headers.get("Retry-After", 5))
+                logger.warning(f"Rate limited (429). Sleeping for {retry_after}s before retry...")
+                import time
+                time.sleep(retry_after)
+                # We decrement the attempt counter to retry again
+                continue
             logger.warning(f"HTTP Error attempt {attempt + 1} failed for {url}: {e}")
             if attempt < 2:
                 import time
