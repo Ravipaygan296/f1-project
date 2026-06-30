@@ -13,6 +13,7 @@ const navItems = [
   { href: '/prediction', label: 'Prediction', icon: '⧫' },
   { href: '/live', label: 'Live Data', icon: '●' },
   { href: '/live-prediction', label: 'Live Predict', icon: '🎯' },
+  { href: '/engineer', label: 'Race Eng', icon: '🔧' },
   { href: '/chat', label: 'AI Analyst', icon: '⬡' },
 ]
 
