@@ -8,9 +8,9 @@ It started as "an F1 dashboard" and turned into something a lot bigger: a histor
 
 - **Historical analytics** — 2018–2026 season data (results, laps, pit stops, tyre stints) pulled from Jolpica-F1 and OpenF1, normalized into Postgres. Driver vs driver, team vs team, tyre compound analysis, track-specific patterns.
 - **Live race tracking** — polls OpenF1 during sessions and shows running order, tyre ages, and gap-based strategy flags. Auto-syncs new race data after every session with a background worker, so I don't have to manually re-run ingestion every race weekend.
+- **Race Engineer System** — A real-time pit wall decision support system. It maps out pre-race strategy trees (Clean, SC, rival undercut/overcut scenarios) and monitors live OpenF1 telemetry lap-by-lap, flagging urgent alerts (e.g. tyre cliffs, safety car windows, or reactive covering) with estimated time gains.
 - **AI Analyst** — a chat interface where you ask a question in plain English and it writes real SQL against the database, runs it, and answers using only what the query actually returned. It shows the SQL it ran so you can check it yourself. If the data isn't there, it says so instead of guessing.
 - **Race prediction** — a Gradient Boosting model trained on 2018–2022 data, validated on 2023, tested on 2024–2025, with calibrated probabilities. It's explicitly labeled as an estimate, not a guarantee, because F1 has real randomness (safety cars, first-lap incidents, mechanical failures) that no model should pretend to predict.
-- **Strategy layer** — undercut/overcut detection, safety car pit windows, and team-specific strategy tendencies, computed from real lap and pit stop data.
 
 ## The stack
 
@@ -20,17 +20,19 @@ Python (FastAPI, pandas, scikit-learn) for the backend and analytics. PostgreSQL
 
 I'm including this section on purpose, because I think the mistakes are more useful than the polished parts.
 
+**Championship points mismatch due to missing Sprint races.** Our initial standings calculations were lower than the official F1 values because the Jolpica `/results.json` endpoint only reports Grand Prix Sunday results. Drivers who scored points in Saturday Sprint races (China, Miami, Canada) were missing those points. We resolved this by querying the `/sprint.json` endpoint and merging those points into the main results, restoring absolute accuracy to the leaderboard.
+
+**API Rate-limiting and slow ingestion sync.** The manual sync took minutes because it re-ingested all 22 rounds of the season sequentially. This often timed out or hit API rate limits. We optimized this by introducing a "smart sync" that detects completed rounds that are currently missing from the DB and queries only those, resulting in a 10x faster sync.
+
 **SQLite vs PostgreSQL syntax.** I started on SQLite for local development since it needed zero setup, but the AI analyst's SQL generation kept defaulting to PostgreSQL syntax (`ILIKE`, which SQLite doesn't have) and reusing the same table alias in subqueries. Both caused real query failures. Fixed it by being explicit in the system prompt about which database engine it's writing for, with worked examples.
 
 **My prediction model was badly wrong before I fixed the features.** Early on, Fernando Alonso was showing up as the top podium probability for the Austrian GP at 53%, ahead of the actual championship leader. The root cause was that circuit history was a flat average across every season Alonso had ever raced at that track, with no weighting for recency or his actual 2026 form (four DNFs that season). Adding season-weighted circuit history and a 2026-specific form feature fixed it.
 
 **The model still got the actual Austria result wrong**, and that taught me the most. Russell won, Verstappen finished second after recovering from a Q3 crash, and Hamilton lost a podium position because Ferrari called him into the pits a lap later than they should have — he literally said "you told me too late" on team radio. None of that — a qualifying crash, a late strategy call, a mid-race VSC that bunched the field — is something a model trained on 2018–2022 data could have known in advance. That's not a bug to fix, it's a real limit on how accurate race prediction can be, and I think being honest about that limit matters more than chasing a number that would only be achievable by overfitting.
 
-**Single commit history.** I built most of this in long sessions and only pushed once at the end, which meant the repo showed up as one giant commit with no development trail. Going forward I'm committing in smaller, real steps in this README. A project with actual commit history looks like work, because it is.
-
 ## What I'd build next
 
-A proper backtesting harness that runs the prediction model against every race week-by-week instead of one fixed test split, so I can see exactly which features help and which don't per race rather than only in aggregate. I'd also like to add live in-race probability updates that recalculate after every lap, since a lot of the genuinely interesting signal (tyre cliffs, safety car timing, undercut windows) only shows up once the race is actually running.
+A proper backtesting harness that runs the prediction model against every race week-by-week instead of one fixed test split, so I can see exactly which features help and which don't per race rather than only in aggregate. I'd also like to expand the Live Race Engineer system to incorporate live in-race probability updates that recalculate after every lap.
 
 ## Setup
 
