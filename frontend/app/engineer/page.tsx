@@ -6,9 +6,9 @@ export default function RaceEngineerPage() {
   const wsRef = useRef<WebSocket>();
 
   useEffect(() => {
-    // We mock the session key to 9158 for testing purposes, but this would typically come from router or context.
+    // Connect to the latest live session key
     const ws = new WebSocket(
-      `ws://localhost:8000/api/engineer/live/9158`
+      `ws://localhost:8000/api/engineer/live/latest`
     );
     ws.onmessage = (e) => setBriefing(JSON.parse(e.data));
     wsRef.current = ws;
