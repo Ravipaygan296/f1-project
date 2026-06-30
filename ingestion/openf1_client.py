@@ -18,6 +18,16 @@ def _get(url: str, params: dict = None, timeout: int = 20):
             r = requests.get(url, params=params, timeout=timeout)
             r.raise_for_status()
             return r.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                logger.warning(f"No data found (404) for {url} with params {params}")
+                return []
+            logger.warning(f"HTTP Error attempt {attempt + 1} failed for {url}: {e}")
+            if attempt < 2:
+                import time
+                time.sleep(2 ** attempt)
+            else:
+                raise
         except requests.exceptions.RequestException as e:
             logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
             if attempt < 2:
