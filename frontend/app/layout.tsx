@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/Navbar'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: 'F1 Telemetry Room — Race Analytics Dashboard',
@@ -15,9 +16,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col">
-        <Navbar />
+        <Suspense fallback={<div className="h-[70px] bg-asphalt-deep/80" />}>
+          <Navbar />
+        </Suspense>
         <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-8 pb-16">
-          {children}
+          <Suspense fallback={<div className="flex items-center justify-center h-64 text-timing-muted animate-pulse">Loading page...</div>}>
+            {children}
+          </Suspense>
         </main>
         <footer className="border-t border-white/[0.06] px-6 py-4 text-center text-timing-muted text-xs">
           F1 Telemetry Room — Unofficial project, not affiliated with Formula 1 or FIA.
